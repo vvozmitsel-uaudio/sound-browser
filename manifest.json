@@ -1,0 +1,15 @@
+{
+    "package_name": "Sound Browser",
+    "id": "com.vvozmitsel.sound_browser",
+    "title": "Sound Browser",
+    "version": "0.1.0",
+    "sdk_version": "0.1.1.22",
+    "min_luna_version": "3.1.1",
+    "engines": ["luna"],
+    "html": "index.html",
+    "target": "window",
+    "floating": true,
+    "show_with_session": false,
+    "width": 1000,
+    "height": 680
+}

@@ -1,0 +1,14 @@
+Sound Browser, a LUNA Add On
+Copyright 2026 vvozmitsel
+
+This product is licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+Release builds (.lunaaddon) include the LUNA Builder SDK script bundle
+(vendor/luna.global.js):
+  @uaudio/luna-builder-sdk
+  Copyright 2026 Universal Audio, Inc.
+  Licensed under the Apache License, Version 2.0.
+
+Sound Browser is a community project, not affiliated with or endorsed by
+Universal Audio, Inc. or Freesound. LUNA is a trademark of Universal Audio, Inc.
+Sounds found through the Add On are licensed by their authors on freesound.org.

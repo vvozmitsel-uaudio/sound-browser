@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sound Browser</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #151515; --panel: #1e1e1e; --raised: #262626; --line: #323232;
+      --text: #ddd; --dim: #8a8a8a; --accent: #F7C449; --ok: #7bc47f; --err: #ef6b5b;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 13px -apple-system, Helvetica, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    button, input, select { font: inherit; color: var(--text); background: var(--raised); border: 1px solid #444; border-radius: 6px; }
+    button { padding: 5px 12px; cursor: pointer; }
+    button:hover:not(:disabled) { border-color: #666; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+    input, select { padding: 5px 8px; }
+    input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+    header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 14px; margin: 0; white-space: nowrap; }
+    header h1 span { color: var(--accent); }
+    #search { display: flex; gap: 8px; flex: 1; }
+    #q { flex: 1; min-width: 120px; }
+    #session { color: var(--dim); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    #key-state { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--raised); white-space: nowrap; }
+    #key-state[data-kind=ok] { color: var(--ok); }
+    #key-state[data-kind=error] { color: var(--err); }
+
+    .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); color: var(--dim); }
+    .filters label { display: flex; align-items: center; gap: 5px; }
+    .filters input[type=number] { width: 62px; }
+
+    .body { flex: 1; display: flex; min-height: 0; }
+    .results-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #results { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; }
+    #results .empty { padding: 40px; text-align: center; color: var(--dim); }
+    .row { display: grid; grid-template-columns: 34px 180px 1fr auto; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #222; }
+    .row:hover { background: #1b1b1b; }
+    .row .play { width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+    .row .play.on { background: var(--accent); color: #000; }
+    .row .wave { width: 180px; height: 40px; object-fit: fill; border-radius: 3px; background: #0d0d0d; cursor: pointer; filter: grayscale(1) brightness(1.4); }
+    .row .meta { min-width: 0; }
+    .row .name { color: var(--text); text-decoration: none; font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .name:hover { color: var(--accent); }
+    .row .sub { color: var(--dim); font-size: 12px; display: flex; gap: 8px; align-items: center; margin-top: 2px; white-space: nowrap; overflow: hidden; }
+    .row .tags { color: #666; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .license { font-size: 10px; padding: 1px 6px; border-radius: 8px; border: 1px solid #555; }
+    .license[data-license=CC0] { border-color: var(--ok); color: var(--ok); }
+    .license[data-license="CC BY-NC"] { border-color: var(--err); color: var(--err); }
+    .row .import.working { opacity: .6; }
+    .row .import.done::after { content: ' ✓'; }
+    .pager { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-top: 1px solid var(--line); color: var(--dim); }
+    .pager #page { flex: 1; }
+
+    aside { width: 260px; flex: none; border-left: 1px solid var(--line); background: var(--panel); padding: 12px; display: flex; flex-direction: column; gap: 14px; overflow: auto; }
+    aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 0 0 6px; }
+    aside select { width: 100%; }
+    #drop { border: 2px dashed #444; border-radius: 8px; padding: 18px 10px; text-align: center; color: var(--dim); }
+    #drop.over { border-color: var(--accent); color: var(--accent); background: #2a2516; }
+    #drop.disabled { opacity: .5; }
+    #drop button { margin-top: 8px; }
+    #credits-text { white-space: pre-wrap; font-size: 11px; color: var(--dim); max-height: 180px; overflow: auto; background: #151515; border-radius: 6px; padding: 8px; margin: 6px 0; user-select: text; }
+    #credit-note { font-size: 11px; color: var(--accent); }
+
+    footer { display: flex; align-items: center; gap: 12px; padding: 7px 14px; background: var(--panel); border-top: 1px solid var(--line); min-height: 34px; }
+    #status { flex: 1; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #status[data-kind=ok] { color: var(--ok); }
+    #status[data-kind=error] { color: var(--err); }
+    #progress { width: 160px; accent-color: var(--accent); }
+
+    dialog { background: var(--panel); color: var(--text); border: 1px solid #444; border-radius: 10px; width: min(460px, 90vw); padding: 18px; }
+    dialog::backdrop { background: rgba(0,0,0,.6); }
+    dialog h2 { margin: 0 0 8px; font-size: 15px; }
+    dialog p { color: var(--dim); line-height: 1.45; margin: 6px 0; }
+    dialog a { color: var(--accent); }
+    dialog input { width: 100%; margin: 8px 0; }
+    dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+    dialog .actions .spacer { flex: 1; }
+    #key-msg { min-height: 1.4em; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sound <span>Browser</span></h1>
+    <form id="search" autocomplete="off">
+      <input id="q" type="search" placeholder="Search Freesound: kick, rain, vinyl crackle…" aria-label="Search Freesound">
+      <button id="search-go" class="primary" type="submit">Search</button>
+    </form>
+    <span id="key-state"></span>
+    <button id="open-settings" type="button" title="Freesound API key">Settings</button>
+    <span id="session">Connecting…</span>
+  </header>
+
+  <div class="filters">
+    <label>Length <input id="min-dur" type="number" min="0" step="0.1" placeholder="min s"> – <input id="max-dur" type="number" min="0" step="0.1" placeholder="max s"></label>
+    <label>BPM <input id="min-bpm" type="number" min="0" placeholder="min"> – <input id="max-bpm" type="number" min="0" placeholder="max"></label>
+    <label>License
+      <select id="license">
+        <option value="any">Any</option>
+        <option value="cc0">CC0 only</option>
+        <option value="by">CC BY</option>
+        <option value="by-nc">CC BY-NC</option>
+      </select>
+    </label>
+    <label>Sort
+      <select id="sort">
+        <option value="score">Relevance</option>
+        <option value="downloads_desc">Most downloaded</option>
+        <option value="rating_desc">Top rated</option>
+        <option value="created_desc">Newest</option>
+        <option value="duration_asc">Shortest</option>
+        <option value="duration_desc">Longest</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="body">
+    <div class="results-pane">
+      <ul id="results"><li class="empty">Search Freesound's Creative Commons library, preview a sound, and import it at the playhead.</li></ul>
+      <div class="pager">
+        <span id="page"></span>
+        <button id="prev" type="button" disabled>‹ Prev</button>
+        <button id="next" type="button" disabled>Next ›</button>
+      </div>
+    </div>
+
+    <aside>
+      <section>
+        <h2>Import to</h2>
+        <select id="target" aria-label="Import to">
+          <option value="new">A new track</option>
+          <option value="focused">Focused track</option>
+        </select>
+      </section>
+      <section>
+        <h2>Your own file</h2>
+        <div id="drop">
+          Drop an audio file here
+          <br><button id="choose" type="button">Choose file…</button>
+          <input id="file" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac,.ogg" hidden>
+        </div>
+      </section>
+      <section>
+        <h2>Credits (<span id="credit-count">0</span>)</h2>
+        <div id="credits-text"></div>
+        <div id="credit-note"></div>
+        <button id="copy-credits" type="button" disabled>Copy credits</button>
+      </section>
+    </aside>
+  </div>
+
+  <footer>
+    <span id="status">Starting…</span>
+    <progress id="progress" max="1" value="0" hidden></progress>
+  </footer>
+
+  <template id="row">
+    <li class="row">
+      <button class="play" type="button" title="Preview">▶</button>
+      <img class="wave" alt="" loading="lazy">
+      <div class="meta">
+        <a class="name" href="#"></a>
+        <div class="sub"><span class="user"></span><span class="facts"></span><span class="license"></span></div>
+        <div class="tags"></div>
+      </div>
+      <button class="import" type="button">Import</button>
+    </li>
+  </template>
+
+  <dialog id="settings">
+    <form id="key-form" method="dialog">
+      <h2>Freesound API key</h2>
+      <p>Sound Browser searches <a href="https://freesound.org">Freesound</a> with your own free API key.
+        Get one at <a id="apply" href="https://freesound.org/apiv2/apply">freesound.org/apiv2/apply</a>
+        (sign in, create a credential, and copy its <b>Client secret/Api key</b>).</p>
+      <input id="key-input" type="password" placeholder="Paste your API key" autocomplete="off" spellcheck="false">
+      <p id="storage-note"></p>
+      <div id="key-msg"></div>
+      <div class="actions">
+        <button id="remove-key" type="button">Remove key</button>
+        <span class="spacer"></span>
+        <button id="close-settings" type="button">Close</button>
+        <button class="primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="vendor/luna.global.js"></script>
+  <!-- The bundle npm run build writes from src/: one classic script, never a module script. -->
+  <script src="dist/main.js"></script>
+</body>
+</html>
