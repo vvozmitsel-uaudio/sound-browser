@@ -95,13 +95,13 @@ export async function importAudio(session: Luna.Session, req: ImportRequest): Pr
     let trackName = focused?.name ?? '';
     if (req.target.kind === 'new') {
       trackName = req.target.name ?? req.clipName;
-      const reply = (await session.newTrack({
+      const [track] = await session.newTrack({
         name: trackName,
         trackType: 'audio',
         stemFormat: req.channels > 1 ? 'stereo' : 'mono',
         makeNameUnique: true,
-      })) as { track_uid?: string; uid?: string } | null;
-      trackUid = reply?.track_uid ?? reply?.uid;
+      });
+      trackUid = track?.id;
       if (!trackUid) throw new Error('LUNA made the track but did not say its uid.');
     }
     await session.insertClip({
@@ -129,6 +129,21 @@ export interface Credit {
   id: number;
   line: string;
   license: string;
+}
+
+/**
+ * The servers the manifest asks for (`network`) that the user has not allowed LUNA to let this
+ * page reach. LUNA 3.1.2 and later block every other server; an older LUNA reports neither
+ * list and blocks nothing, so that reads as none blocked.
+ */
+export function blockedServers(requested: readonly string[] | undefined, allowed: readonly string[] | undefined): string[] {
+  if (!requested || !allowed) return [];
+  return requested.filter((host) => !allowed.includes(host));
+}
+
+/** What to tell the user when LUNA is keeping the page from Freesound. */
+export function blockedText(blocked: readonly string[]): string {
+  return `LUNA is not letting Sound Browser reach ${blocked.join(' and ')}. Allow ${blocked.length > 1 ? 'them' : 'it'} in LUNA Settings > Add Ons > SERVERS.`;
 }
 
 /** Add a credit unless the same sound is already credited; returns the new list. */

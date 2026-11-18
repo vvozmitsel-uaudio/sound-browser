@@ -23,7 +23,9 @@ it at the playhead without leaving your session.
 
 1. You need **LUNA 3.1.1 or newer**.
 2. Download `sound-browser.lunaaddon` from the [latest release](../../releases/latest) and
-   double-click it. LUNA installs it.
+   double-click it. LUNA installs it. A LUNA that limits which servers an Add On can reach
+   asks you to allow `freesound.org` and `cdn.freesound.org` (search, and the previews and
+   waveforms). Allow both, or change it later in **Settings > Add Ons > SERVERS**.
 3. Open it from **Add Ons > Windows > Sound Browser**.
 4. Get a free Freesound API key at <https://freesound.org/apiv2/apply>: sign in, create a
    credential, and copy its API key. Paste it into the Add On's **Settings**.
@@ -51,14 +53,13 @@ and `package.json` must point to that copy. Edit the `file:` path under `devDepe
 to match where your copy is.
 
 ```sh
-npm install --ignore-scripts   # the SDK ships prebuilt; skip its own build step
-cp "<path to SDK>/dist/luna.global.js" vendor/   # the SDK bundle the page loads
+npm install                    # the SDK ships prebuilt
 npm test                       # unit tests against the SDK's mock engine and a fake Freesound
 npm run build                  # type-check, then src/ -> dist/main.js
 npx ua-builder serve           # http://localhost:8790/ (LUNA running = live data)
 npm run test:page              # with serve running: the page end to end in headless Chrome
 npx ua-builder install         # link this folder into LUNA's Add Ons folder
-npm run pack                   # build, then sound-browser.lunaaddon for a release
+npm run pack                   # build, refresh vendor/luna.global.js, then sound-browser.lunaaddon
 ```
 
 `install` links this folder, so LUNA loads whatever `dist/` holds. Build first, or keep
@@ -66,7 +67,7 @@ npm run pack                   # build, then sound-browser.lunaaddon for a relea
 
 | Path | Purpose |
 |---|---|
-| `manifest.json` | What LUNA reads: id, name, window size, entry page. |
+| `manifest.json` | What LUNA reads: id, name, window size, entry page, and `network`, the servers the page may reach. |
 | `index.html` | The page and its styles. Loads `vendor/luna.global.js`, then `dist/main.js`. |
 | `src/freesound.ts` | Freesound APIv2 client: search URL and filters, parsing, errors, preview download. |
 | `src/wav.ts` | PCM WAV encoder (16/24-bit), and WAV/AIFF detection. |
@@ -80,6 +81,11 @@ npm run pack                   # build, then sound-browser.lunaaddon for a relea
 Requests are plain GETs with the key as the `token` query parameter, so the browser sends no
 CORS preflight. Freesound answers `Access-Control-Allow-Origin: *` on both the API and the
 preview CDN. That matters because inside LUNA the page runs on its own origin.
+
+LUNA 3.1.2 and later let an Add On page reach only the servers its manifest lists in `network`
+and the user allows. Sound Browser lists `freesound.org` (the API) and `cdn.freesound.org`
+(previews and waveform images), reads what was allowed from `luna.gui.addOns`, and says so when
+one is missing instead of failing with a network error.
 
 ## License
 

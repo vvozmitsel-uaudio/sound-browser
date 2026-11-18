@@ -2,7 +2,7 @@
 // the Luna global that src/ reads.
 import { describe, expect, it } from 'vitest';
 import {
-  addCredit, creditsText, durationText, focusedTarget, importAudio, playheadTick, positionText, safeFileName,
+  addCredit, blockedServers, blockedText, creditsText, durationText, focusedTarget, importAudio, playheadTick, positionText, safeFileName,
 } from '../src/logic';
 import { encodeWav } from '../src/wav';
 
@@ -31,6 +31,18 @@ async function clips(engine: Luna.MockEngine) {
   }
   return out;
 }
+
+describe('blockedServers', () => {
+  it('lists the servers the user has not allowed', () => {
+    expect(blockedServers(['freesound.org', 'cdn.freesound.org'], ['freesound.org'])).toEqual(['cdn.freesound.org']);
+    expect(blockedServers(['freesound.org'], ['freesound.org'])).toEqual([]);
+    expect(blockedText(['freesound.org', 'cdn.freesound.org'])).toContain('freesound.org and cdn.freesound.org');
+  });
+  it('blocks nothing on a LUNA that does not report the lists', () => {
+    expect(blockedServers(undefined, undefined)).toEqual([]);
+    expect(blockedServers(['freesound.org'], undefined)).toEqual([]);
+  });
+});
 
 describe('importAudio', () => {
   it('uploads, makes a track and places the clip at the playhead as one undo entry', async () => {

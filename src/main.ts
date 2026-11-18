@@ -10,7 +10,7 @@ import {
   type LicenseFilter, type SearchParams, type Sound, type SortOrder,
 } from './freesound';
 import {
-  addCredit, creditsText, durationText, focusedTarget, importAudio, positionText, safeFileName, targetSampleRate,
+  addCredit, blockedServers, blockedText, creditsText, durationText, focusedTarget, importAudio, positionText, safeFileName, targetSampleRate,
   type Credit, type Target,
 } from './logic';
 import { encodeWav, isLosslessContainer } from './wav';
@@ -38,6 +38,8 @@ const freesound = new FreesoundClient(() => apiKey);
 let lastSearch: SearchParams | undefined;
 let searchAbort: AbortController | undefined;
 let busy = false;
+/** Servers in the manifest that the user has not allowed in LUNA; requests to them fail. */
+let blocked: string[] = [];
 
 // ---------------------------------------------------------------------------------------------
 // Status line and progress
@@ -55,6 +57,7 @@ function progress(fraction: number | undefined): void {
 }
 
 function errorText(e: unknown): string {
+  if (e instanceof FreesoundError && e.code === 'network' && blocked.length) return blockedText(blocked);
   if (e instanceof FreesoundError) return e.message;
   const err = e as { code?: string; message?: string };
   return err?.code && !String(err.message).includes(err.code) ? `${err.message} (${err.code})` : String(err?.message ?? e);
@@ -66,6 +69,22 @@ async function openExternal(url: string): Promise<void> {
     if (luna && (await luna.gui.available())) return void (await luna.gui.openUrl(url));
   } catch { /* fall back */ }
   window.open(url, '_blank', 'noopener');
+}
+
+/**
+ * LUNA 3.1.2 lets this page reach only the servers in the manifest's `network` that the user
+ * allowed. Read what was allowed, so a refused search says why. LUNA reloads the page when the
+ * user changes it, so once is enough. Outside LUNA there is no instance and nothing is blocked.
+ */
+async function checkServers(): Promise<void> {
+  try {
+    const me = await luna.gui.thisInstance();
+    if (!me) return;
+    await luna.gui.addOns.load();
+    const addOn = luna.gui.addOns.byId(me.addOnId);
+    blocked = blockedServers(addOn?.network.value, addOn?.networkAllowed.value);
+  } catch { /* a LUNA without Add On instances: nothing to check */ }
+  if (blocked.length) status(blockedText(blocked), 'error');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -473,6 +492,7 @@ async function connect(): Promise<void> {
   } else {
     status('Ready. Search Freesound above.');
   }
+  await checkServers();
   void targetSampleRate(luna).then((rate) => (sampleRate = rate));
 
   await luna.sessions.ready();
