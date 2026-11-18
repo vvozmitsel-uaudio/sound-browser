@@ -1,7 +1,7 @@
 {
   "name": "sound_browser",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Sound Browser: search Freesound and import sounds into LUNA. A LUNA Add On.",
   "scripts": {
